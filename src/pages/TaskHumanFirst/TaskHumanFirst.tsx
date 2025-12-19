@@ -11,12 +11,18 @@ import {
   Snackbar,
   Alert,
   LinearProgress,
+  Tooltip,
+  Paper,
+  Chip,
 } from "@mui/material";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
+
 import { useSession } from "../../app/session/SessionContext";
 import TemplateSelector, { type MemeTemplate } from "../../Components/Templates/TemplateSelector";
 import CaptionIdeasForm from "../../Components/CaptionsIdeas/CaptionIdeasForm";
 import MemeEditor, { type MemeTextLayer } from "../../Components/MemeEditor/MemeEditor";
-import { exportMemePNG, downloadDataUrl } from "../../Components/MemeEditor/exportMeme";
+import { exportMemePNG } from "../../Components/MemeEditor/exportMeme";
+import { uploadMemeAndInsertRow } from "../../lib/memeUpload";
 
 // ✅ import images from src/assets
 import baby from "../../assets/templates/baby.jpg";
@@ -78,28 +84,37 @@ const FALLBACK_TASKS: {
   },
 ];
 
+type IdeaState = {
+  layers: MemeTextLayer[];
+};
+
 type TopicState = {
   topicId: string;
   selectedTemplateId: string | null;
 
-  ideas: [string, string, string];
+  ideas: [IdeaState, IdeaState, IdeaState];
   bestIdeaIndex: 0 | 1 | 2;
 
-  layers: MemeTextLayer[];
-
-  // ✅ exported final image (base64 png)
   memePng?: string;
+
+  savedImageUrl?: string;
+  savedImagePath?: string;
 };
 
 function makeId(prefix = "layer") {
   return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now()}`;
 }
 
+function formatMMSS(totalSeconds: number) {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
 export default function TaskHumanFirst() {
   const nav = useNavigate();
   const session = useSession();
 
-  // ✅ participant id (adapt later if your session uses a different key)
   const participantId =
     (session as any).participantId ||
     (session as any).participant?.id ||
@@ -112,6 +127,8 @@ export default function TaskHumanFirst() {
   const [activeIndex, setActiveIndex] = useState(0);
   const activeTask = tasks[activeIndex];
 
+  const [saving, setSaving] = useState(false);
+
   const [secondsLeft, setSecondsLeft] = useState(TOPIC_SECONDS);
   const [toast, setToast] = useState<{
     open: boolean;
@@ -123,18 +140,48 @@ export default function TaskHumanFirst() {
     tasks.map((t) => ({
       topicId: t.topicId,
       selectedTemplateId: null,
-      ideas: ["", "", ""],
-      bestIdeaIndex: 0,
-      layers: [
+      ideas: [
         {
-          id: "best",
-          text: "",
-          xPct: 10,
-          yPct: 20,
-          fontSize: 40,
-          locked: true, // best caption cannot be deleted
-        } as any,
+          layers: [
+            {
+              id: "caption",
+              text: "",
+              xPct: 10,
+              yPct: 20,
+              fontSize: 40,
+              locked: true,
+            } as any,
+          ],
+        },
+        {
+          layers: [
+            {
+              id: "caption",
+              text: "",
+              xPct: 10,
+              yPct: 20,
+              fontSize: 40,
+              locked: true,
+            } as any,
+          ],
+        },
+        {
+          layers: [
+            {
+              id: "caption",
+              text: "",
+              xPct: 10,
+              yPct: 20,
+              fontSize: 40,
+              locked: true,
+            } as any,
+          ],
+        },
       ],
+      bestIdeaIndex: 0,
+      memePng: undefined,
+      savedImageUrl: undefined,
+      savedImagePath: undefined,
     }))
   );
 
@@ -144,10 +191,14 @@ export default function TaskHumanFirst() {
   const selectedTemplate =
     activeTemplates.find((t) => t.id === activeState.selectedTemplateId) ?? null;
 
+  const getCaptionText = (idea: IdeaState) =>
+    (idea.layers.find((l) => l.locked)?.text ?? "").trim();
+
   const canContinue = useMemo(() => {
     const templateOk = !!activeState.selectedTemplateId;
-    const ideasOk = activeState.ideas.every((x) => x.trim().length >= 3);
-    const bestOk = activeState.ideas[activeState.bestIdeaIndex].trim().length >= 3;
+    const captions = activeState.ideas.map(getCaptionText);
+    const ideasOk = captions.every((x) => x.length >= 3);
+    const bestOk = captions[activeState.bestIdeaIndex].length >= 3;
     return templateOk && ideasOk && bestOk;
   }, [activeState.selectedTemplateId, activeState.ideas, activeState.bestIdeaIndex]);
 
@@ -176,35 +227,29 @@ export default function TaskHumanFirst() {
     );
   };
 
-  const syncBestLayerText = (ideas: [string, string, string], bestIdx: 0 | 1 | 2) => {
-    const bestText = (ideas[bestIdx] ?? "").trim();
-    const nextLayers = activeState.layers.map((l) =>
-      l.id === "best" ? { ...l, text: bestText } : l
-    );
-    updateActiveState({ layers: nextLayers });
-  };
+  // No separate sync needed; caption text lives inside each idea's locked layer.
 
   const handleSelectTemplate = (templateId: string) => {
     updateActiveState({ selectedTemplateId: templateId });
   };
 
-  const handleIdeasChange = (ideas: [string, string, string]) => {
-    updateActiveState({ ideas });
-    syncBestLayerText(ideas, activeState.bestIdeaIndex);
-  };
-
   const handleBestChange = (idx: 0 | 1 | 2) => {
     updateActiveState({ bestIdeaIndex: idx });
-    syncBestLayerText(activeState.ideas, idx);
   };
 
-  const handleLayersChange = (layers: MemeTextLayer[]) => {
-    updateActiveState({ layers });
+  const handleEditorLayersChange = (layers: MemeTextLayer[]) => {
+    const i = activeState.bestIdeaIndex;
+    const nextIdeas = activeState.ideas.map((idea, idx) =>
+      idx === i ? { ...idea, layers } : idea
+    ) as [IdeaState, IdeaState, IdeaState];
+    updateActiveState({ ideas: nextIdeas });
   };
 
   const addExtraTextBox = () => {
-    const next = [
-      ...activeState.layers,
+    const i = activeState.bestIdeaIndex;
+    const curr = activeState.ideas[i].layers;
+    const nextLayers = [
+      ...curr,
       {
         id: makeId("extra"),
         text: "New text",
@@ -214,27 +259,39 @@ export default function TaskHumanFirst() {
         locked: false,
       } as any,
     ];
-    updateActiveState({ layers: next });
+    const nextIdeas = activeState.ideas.map((idea, idx) =>
+      idx === i ? { ...idea, layers: nextLayers } : idea
+    ) as [IdeaState, IdeaState, IdeaState];
+    updateActiveState({ ideas: nextIdeas });
   };
 
   const saveAllToSession = () => {
-    const payload = stateByTopic.map((s) => ({
-      participantId,
-      topicId: s.topicId,
-      templateId: s.selectedTemplateId,
-      ideas: s.ideas.map((x) => x.trim()),
-      bestIdeaIndex: s.bestIdeaIndex,
-      bestCaption: s.ideas[s.bestIdeaIndex].trim(),
-      layers: s.layers,
-      memePng: s.memePng,
-    }));
+    const payload = stateByTopic.map((s) => {
+      const captions = s.ideas.map(getCaptionText);
+      return {
+        participantId,
+        topicId: s.topicId,
+        templateId: s.selectedTemplateId,
+        captions,
+        bestIdeaIndex: s.bestIdeaIndex,
+        bestCaption: captions[s.bestIdeaIndex] ?? "",
+        layers: {
+          bestLayers: s.ideas[s.bestIdeaIndex].layers,
+          ideas: s.ideas.map((i) => i.layers),
+        },
+        memePng: s.memePng,
+        savedImageUrl: s.savedImageUrl,
+        savedImagePath: s.savedImagePath,
+      };
+    });
 
     (session as any).setHumanFirstResults?.(payload);
-    session.setCaptionIdeas?.(payload.flatMap((p) => p.ideas));
+    session.setCaptionIdeas?.(payload.flatMap((p: any) => p.captions));
   };
 
-  // ✅ EXPORT + DOWNLOAD PNG on each topic submit
   const goNext = async () => {
+    if (saving) return;
+
     if (!canContinue) {
       setToast({
         open: true,
@@ -244,28 +301,43 @@ export default function TaskHumanFirst() {
       return;
     }
 
-    if (!selectedTemplate) {
+    if (!selectedTemplate || !activeState.selectedTemplateId) {
       setToast({ open: true, type: "error", msg: "Please select a template." });
       return;
     }
 
+    setSaving(true);
     try {
       const memePng = await exportMemePNG({
         imageUrl: selectedTemplate.imageUrl,
-        layers: activeState.layers,
+        layers: activeState.ideas[activeState.bestIdeaIndex].layers,
         width: 1400,
       });
 
       updateActiveState({ memePng });
 
-      const safePid = String(participantId).replace(/[^a-zA-Z0-9_-]/g, "_");
-      const safeTopic = String(activeTask.topicId).replace(/[^a-zA-Z0-9_-]/g, "_");
-      const safeTpl = String(activeState.selectedTemplateId).replace(/[^a-zA-Z0-9_-]/g, "_");
+      const captions = activeState.ideas.map(getCaptionText);
+      const result = await uploadMemeAndInsertRow({
+        bucket: "memes",
+        participantId,
+        topicId: activeTask.topicId,
+        templateId: activeState.selectedTemplateId,
+        ideas: captions,
+        bestIdeaIndex: activeState.bestIdeaIndex,
+        bestCaption: captions[activeState.bestIdeaIndex] ?? "",
+        layers: {
+          bestLayers: activeState.ideas[activeState.bestIdeaIndex].layers,
+          ideas: activeState.ideas.map((i) => i.layers),
+        },
+        memeDataUrl: memePng,
+      });
 
-      const filename = `participant_${safePid}__topic_${safeTopic}__template_${safeTpl}.png`;
-      downloadDataUrl(memePng, filename);
+      updateActiveState({
+        savedImageUrl: result.publicUrl,
+        savedImagePath: result.filePath,
+      });
 
-      setToast({ open: true, type: "success", msg: "Saved topic + downloaded image!" });
+      setToast({ open: true, type: "success", msg: "Saved to Supabase ✅" });
 
       const isLast = activeIndex === tasks.length - 1;
       if (!isLast) {
@@ -276,13 +348,15 @@ export default function TaskHumanFirst() {
 
       saveAllToSession();
       nav("/done");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
       setToast({
         open: true,
         type: "error",
-        msg: "Failed to export image. Check console for details.",
+        msg: err?.message ? `Save failed: ${err.message}` : "Save failed",
       });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -292,9 +366,64 @@ export default function TaskHumanFirst() {
   };
 
   const progressPct = Math.round(((TOPIC_SECONDS - secondsLeft) / TOPIC_SECONDS) * 100);
+  const isLowTime = secondsLeft <= 10;
 
   return (
     <Box sx={{ maxWidth: 1200, mx: "auto", p: { xs: 2, md: 3 } }}>
+      {/* ✅ Fixed timer widget (top-right) */}
+      <Tooltip
+        arrow
+        placement="left"
+        title={
+          <Box>
+            <Typography variant="subtitle2" fontWeight={800}>
+              Topic timer
+            </Typography>
+            <Typography variant="body2">
+              {formatMMSS(secondsLeft)} remaining (1 minute per topic)
+            </Typography>
+            <Typography variant="caption" sx={{ opacity: 0.8 }}>
+              Progress: {progressPct}%
+            </Typography>
+          </Box>
+        }
+      >
+        <Paper
+          elevation={8}
+          sx={{
+            position: "fixed",
+            top: 16,
+            right: 16,
+            zIndex: 9999,
+            px: 1.5,
+            py: 1,
+            borderRadius: 999,
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            backdropFilter: "blur(8px)",
+          }}
+        >
+          <Chip
+            icon={<AccessTimeIcon />}
+            label={formatMMSS(secondsLeft)}
+            color={isLowTime ? "error" : "primary"}
+            variant={isLowTime ? "filled" : "outlined"}
+            sx={{ fontWeight: 800 }}
+          />
+          <Box sx={{ minWidth: 120 }}>
+            <LinearProgress
+              variant="determinate"
+              value={progressPct}
+              sx={{ height: 8, borderRadius: 99 }}
+            />
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>
+              Topic {activeIndex + 1}/{tasks.length}
+            </Typography>
+          </Box>
+        </Paper>
+      </Tooltip>
+
       <Stack spacing={2}>
         <Stack spacing={0.5}>
           <Typography variant="h5" fontWeight={800}>
@@ -303,31 +432,12 @@ export default function TaskHumanFirst() {
           <Typography variant="body2" color="text.secondary">
             Topic {activeIndex + 1} of {tasks.length} • Pick template • Write 3 captions • Choose best • Add extra text boxes
           </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Participant: <b>{participantId}</b>
+          </Typography>
         </Stack>
 
-        <Card>
-          <CardContent>
-            <Stack
-              direction={{ xs: "column", md: "row" }}
-              spacing={2}
-              alignItems={{ md: "center" }}
-              justifyContent="space-between"
-            >
-              <Box>
-                <Typography variant="subtitle1" fontWeight={700}>
-                  Time remaining: {secondsLeft}s
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  You have 1 minute per topic.
-                </Typography>
-              </Box>
-              <Box sx={{ flex: 1, minWidth: 240 }}>
-                <LinearProgress variant="determinate" value={progressPct} />
-              </Box>
-            </Stack>
-          </CardContent>
-        </Card>
-
+        {/* Topic */}
         <Card>
           <CardContent>
             <Typography variant="h6" fontWeight={800}>
@@ -346,11 +456,32 @@ export default function TaskHumanFirst() {
                 1) Choose a template
               </Typography>
               <Divider sx={{ my: 1.5 }} />
-              <TemplateSelector
-                templates={activeTemplates}
-                selectedId={activeState.selectedTemplateId}
-                onSelect={handleSelectTemplate}
-              />
+              {!selectedTemplate ? (
+                <TemplateSelector
+                  templates={activeTemplates}
+                  selectedId={activeState.selectedTemplateId}
+                  onSelect={handleSelectTemplate}
+                />
+              ) : (
+                <Stack spacing={1.5}>
+                  <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center">
+                    <Typography variant="subtitle2" fontWeight={800}>Image editor</Typography>
+                    <Stack direction="row" spacing={1}>
+                      <Button variant="outlined" onClick={() => updateActiveState({ selectedTemplateId: null })}>
+                        Change template
+                      </Button>
+                      <Button variant="outlined" onClick={addExtraTextBox}>+ Add text box</Button>
+                    </Stack>
+                  </Stack>
+                  <MemeEditor
+                    imageUrl={selectedTemplate?.imageUrl ?? null}
+                    layers={activeState.ideas[activeState.bestIdeaIndex].layers}
+                    onLayersChange={handleEditorLayersChange}
+                    maxWidth={760}
+                    maxHeight={520}
+                  />
+                </Stack>
+              )}
             </CardContent>
           </Card>
 
@@ -363,55 +494,56 @@ export default function TaskHumanFirst() {
               <CaptionIdeasForm
                 ideas={activeState.ideas}
                 bestIdeaIndex={activeState.bestIdeaIndex}
-                onIdeasChange={handleIdeasChange}
+                onIdeaLayersChange={(idx, layers) => {
+                  const nextIdeas = activeState.ideas.map((idea, i) =>
+                    i === idx ? { ...idea, layers } : idea
+                  ) as [IdeaState, IdeaState, IdeaState];
+                  updateActiveState({ ideas: nextIdeas });
+                }}
                 onBestChange={handleBestChange}
               />
             </CardContent>
           </Card>
         </Stack>
 
-        <Card>
+        {/* <Card>
           <CardContent>
             <Stack direction="row" justifyContent="space-between" alignItems="center">
               <Box>
                 <Typography variant="subtitle1" fontWeight={800}>
-                  3) Create the meme (best caption + extra text boxes)
+                  3) Create the meme
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Drag text, change font size, add more boxes anywhere.
+                  After choosing a template, the editor appears above in Step 1.
                 </Typography>
               </Box>
-
-              <Button variant="outlined" onClick={addExtraTextBox} disabled={!selectedTemplate}>
-                + Add text box
-              </Button>
             </Stack>
 
             <Divider sx={{ my: 1.5 }} />
-
-            <MemeEditor
-              imageUrl={selectedTemplate?.imageUrl ?? null}
-              layers={activeState.layers}
-              onLayersChange={handleLayersChange}
-              disabled={!selectedTemplate}
-            />
+            <Typography variant="body2" color="text.secondary">
+              Use the editor in Step 1 to drag text, change sizes, and add boxes.
+            </Typography>
           </CardContent>
-        </Card>
+        </Card> */}
 
         <Stack direction="row" spacing={1} justifyContent="space-between">
-          <Button variant="outlined" onClick={goPrev} disabled={activeIndex === 0}>
+          <Button variant="outlined" onClick={goPrev} disabled={activeIndex === 0 || saving}>
             Back
           </Button>
 
-          <Button variant="contained" onClick={goNext} disabled={!canContinue}>
-            {activeIndex === tasks.length - 1 ? "Finish → Done" : "Save & Next Topic"}
+          <Button variant="contained" onClick={goNext} disabled={!canContinue || saving}>
+            {saving
+              ? "Saving..."
+              : activeIndex === tasks.length - 1
+              ? "Finish → Done"
+              : "Save & Next Topic"}
           </Button>
         </Stack>
       </Stack>
 
       <Snackbar
         open={toast.open}
-        autoHideDuration={2200}
+        autoHideDuration={2600}
         onClose={() => setToast((t) => ({ ...t, open: false }))}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >

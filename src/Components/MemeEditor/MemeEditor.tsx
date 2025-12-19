@@ -33,11 +33,15 @@ export default function MemeEditor({
   layers,
   onLayersChange,
   disabled,
+  maxWidth = 600,
+  maxHeight = 380,
 }: {
   imageUrl: string | null;
   layers: MemeTextLayer[];
   onLayersChange: (layers: MemeTextLayer[]) => void;
   disabled?: boolean;
+  maxWidth?: number;
+  maxHeight?: number;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [activeLayerId, setActiveLayerId] = useState<string>(layers[0]?.id ?? "");
@@ -123,7 +127,7 @@ export default function MemeEditor({
         sx={{
           position: "relative",
           width: "100%",
-          maxWidth: 900,
+          maxWidth,
           mx: "auto",
           borderRadius: 2,
           overflow: "hidden",
@@ -142,7 +146,7 @@ export default function MemeEditor({
             width: "100%",
             display: "block",
             objectFit: "contain",
-            maxHeight: 520,
+            maxHeight,
           }}
         />
 

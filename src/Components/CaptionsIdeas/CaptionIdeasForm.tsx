@@ -9,26 +9,61 @@ import {
   Radio,
   Paper,
   Typography,
+  IconButton,
+  Button,
+  Divider,
 } from "@mui/material";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import type { MemeTextLayer } from "../MemeEditor/MemeEditor";
+
+type IdeaState = { layers: MemeTextLayer[] };
+
+function makeId(prefix = "extra") {
+  return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now()}`;
+}
 
 export default function CaptionIdeasForm({
   ideas,
   bestIdeaIndex,
-  onIdeasChange,
+  onIdeaLayersChange,
   onBestChange,
 }: {
-  ideas: [string, string, string];
+  ideas: [IdeaState, IdeaState, IdeaState];
   bestIdeaIndex: 0 | 1 | 2;
-  onIdeasChange: (next: [string, string, string]) => void;
+  onIdeaLayersChange: (idx: 0 | 1 | 2, layers: MemeTextLayer[]) => void;
   onBestChange: (idx: 0 | 1 | 2) => void;
 }) {
+  const getCaptionLayer = (layers: MemeTextLayer[]) =>
+    layers.find((l) => l.locked) ?? layers[0];
+
+  const setCaptionText = (layers: MemeTextLayer[], text: string) =>
+    layers.map((l) => (l.locked ? { ...l, text } : l));
+
+  const addExtra = (layers: MemeTextLayer[]) => [
+    ...layers,
+    {
+      id: makeId("extra"),
+      text: "",
+      xPct: 15,
+      yPct: 60,
+      fontSize: 32,
+      locked: false,
+    } as MemeTextLayer,
+  ];
+
+  const updateExtraText = (layers: MemeTextLayer[], id: string, text: string) =>
+    layers.map((l) => (l.id === id ? { ...l, text } : l));
+
+  const removeExtra = (layers: MemeTextLayer[], id: string) =>
+    layers.filter((l) => l.id !== id);
+
   return (
     <Stack spacing={2}>
       <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
         <FormControl>
-          <FormLabel sx={{ fontWeight: 800 }}>Pick the best caption</FormLabel>
+          <FormLabel sx={{ fontWeight: 800 }}>Pick the best idea</FormLabel>
           <Typography variant="caption" color="text.secondary">
-            The chosen caption will be placed as the main meme text.
+            The selected idea will appear on the image editor.
           </Typography>
 
           <RadioGroup
@@ -47,21 +82,51 @@ export default function CaptionIdeasForm({
         </FormControl>
       </Paper>
 
-      {[0, 1, 2].map((i) => (
-        <TextField
-          key={i}
-          label={`Idea ${i + 1}`}
-          value={ideas[i]}
-          onChange={(e) => {
-            const next = [...ideas] as [string, string, string];
-            next[i] = e.target.value;
-            onIdeasChange(next);
-          }}
-          fullWidth
-          inputProps={{ maxLength: 140 }}
-          helperText={`${ideas[i].length}/140 (min 3 chars)`}
-        />
-      ))}
+      {[0, 1, 2].map((i) => {
+        const layers = ideas[i].layers;
+        const caption = getCaptionLayer(layers);
+        const extras = layers.filter((l) => !l.locked);
+        return (
+          <Paper key={i} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+            <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 1 }}>
+              Idea {i + 1}
+            </Typography>
+
+            <TextField
+              label="Caption"
+              value={caption?.text ?? ""}
+              onChange={(e) => onIdeaLayersChange(i as 0 | 1 | 2, setCaptionText(layers, e.target.value))}
+              fullWidth
+              inputProps={{ maxLength: 140 }}
+              helperText={`${(caption?.text ?? "").length}/140 (min 3 chars)`}
+              sx={{ mb: 1.5 }}
+            />
+
+            {extras.map((ex) => (
+              <Stack key={ex.id} direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                <TextField
+                  label="Extra text"
+                  value={ex.text}
+                  onChange={(e) => onIdeaLayersChange(i as 0 | 1 | 2, updateExtraText(layers, ex.id, e.target.value))}
+                  fullWidth
+                  inputProps={{ maxLength: 140 }}
+                />
+                <IconButton
+                  onClick={() => onIdeaLayersChange(i as 0 | 1 | 2, removeExtra(layers, ex.id))}
+                  title="Remove extra text"
+                >
+                  <DeleteOutlineIcon />
+                </IconButton>
+              </Stack>
+            ))}
+
+            <Divider sx={{ my: 1 }} />
+            <Button size="small" variant="outlined" onClick={() => onIdeaLayersChange(i as 0 | 1 | 2, addExtra(layers))}>
+              + Add extra text
+            </Button>
+          </Paper>
+        );
+      })}
     </Stack>
   );
 }
