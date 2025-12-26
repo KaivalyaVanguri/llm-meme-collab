@@ -212,7 +212,7 @@ export default function MemeEditor({
 
           <Stack spacing={1}>
             <Typography variant="caption" color="text.secondary">
-              Font size ({activeLayer?.fontSize ?? 32}px)
+              Font size ({activeLayer?.fontSize ?? 24}px)
             </Typography>
             <Slider
               min={14}

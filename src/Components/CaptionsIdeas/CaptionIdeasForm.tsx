@@ -45,7 +45,7 @@ export default function CaptionIdeasForm({
       text: "",
       xPct: 15,
       yPct: 60,
-      fontSize: 32,
+      fontSize: 24,
       locked: false,
     } as MemeTextLayer,
   ];
