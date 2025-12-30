@@ -42,8 +42,8 @@ export interface RefineCaptionResponse {
 }
 
 /**
- 
-Call the ai-select-template edge function*/
+ * Call the ai-select-template edge function
+ */
 export async function selectTemplate(
   request: SelectTemplateRequest
 ): Promise<SelectTemplateResponse> {
@@ -52,7 +52,7 @@ export async function selectTemplate(
   });
 
   if (error) {
-    throw new Error(Failed to select template: ${error.message});
+    throw new Error(`Failed to select template: ${error.message}`);
   }
 
   if (!data || !data.selectedTemplateId) {
@@ -61,9 +61,10 @@ export async function selectTemplate(
 
   return data;
 }
-/
- 
-Call the ai-generate-captions edge function*/
+
+/**
+ * Call the ai-generate-captions edge function
+ */
 export async function generateCaptions(
   request: GenerateCaptionsRequest
 ): Promise<GenerateCaptionsResponse> {
@@ -72,20 +73,19 @@ export async function generateCaptions(
   });
 
   if (error) {
-    throw new Error(Failed to generate captions: ${error.message});
+    throw new Error(`Failed to generate captions: ${error.message}`);
   }
 
-  if (!data  !Array.isArray(data.aiCaptions) 
- data.aiCaptions.length !== 3) {
+  if (!data || !Array.isArray(data.aiCaptions) || data.aiCaptions.length !== 3) {
     throw new Error('Invalid response from ai-generate-captions');
   }
 
   return data;
 }
 
-/
- 
-Call the hf-refine-caption edge function*/
+/**
+ * Call the hf-refine-caption edge function
+ */
 export async function refineCaption(
   request: RefineCaptionRequest
 ): Promise<RefineCaptionResponse> {
@@ -94,7 +94,7 @@ export async function refineCaption(
   });
 
   if (error) {
-    throw new Error(Failed to refine caption: ${error.message});
+    throw new Error(`Failed to refine caption: ${error.message}`);
   }
 
   if (!data || !data.finalCaption) {
@@ -104,9 +104,9 @@ export async function refineCaption(
   return data;
 }
 
-/
- 
-Helper: Load template images and prepare for selectTemplate call*/
+/**
+ * Helper: Load template images and prepare for selectTemplate call
+ */
 export async function prepareTemplatesForSelection(
   templatePaths: Array<{ id: string | number; path: string; description?: string }>
 ): Promise<TemplateInput[]> {
@@ -125,9 +125,9 @@ export async function prepareTemplatesForSelection(
   return templates;
 }
 
-/
- 
-Helper: Prepare a single template for caption generation*/
+/**
+ * Helper: Prepare a single template for caption generation
+ */
 export async function prepareTemplateForCaptions(
   templatePath: string
 ): Promise<{ base64: string; mimeType: string }> {

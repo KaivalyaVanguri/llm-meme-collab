@@ -1,4 +1,6 @@
-//Convert an image file to base64 string*
+/**
+ * Convert an image file to base64 string
+ */
 export async function imageToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -13,17 +15,19 @@ export async function imageToBase64(file: File): Promise<string> {
   });
 }
 
-//Load an image from a path and convert to base64
-//For use with local template images
+/**
+ * Load an image from a path and convert to base64
+ * For use with local template images
+ */
 export async function imagePathToBase64(imagePath: string): Promise<{ base64: string; mimeType: string }> {
   const response = await fetch(imagePath);
   if (!response.ok) {
-    throw new Error(Failed to load image: ${imagePath});
+    throw new Error(`Failed to load image: ${imagePath}`);
   }
-
+  
   const blob = await response.blob();
   const mimeType = blob.type;
-
+  
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -37,8 +41,8 @@ export async function imagePathToBase64(imagePath: string): Promise<{ base64: st
 }
 
 /**
- 
-Get MIME type from file extension*/
+ * Get MIME type from file extension
+ */
 export function getMimeTypeFromExtension(filename: string): string {
   const ext = filename.toLowerCase().split('.').pop();
   switch (ext) {
