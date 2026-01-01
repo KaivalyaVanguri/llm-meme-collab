@@ -24,22 +24,23 @@ import MemeEditor, { type MemeTextLayer } from "../../Components/MemeEditor/Meme
 import { exportMemePNG } from "../../Components/MemeEditor/exportMeme";
 import { uploadMemeAndInsertRow } from "../../lib/memeUpload";
 
-// ✅ import images from src/assets
-import baby from "../../assets/templates/baby.jpg";
-import boromir from "../../assets/templates/boromir.jpg";
-import choice from "../../assets/templates/choice.jpg";
-import doge from "../../assets/templates/doge.jpg";
+// School templates
+import successKid from "../../assets/templates/Success_Kid.jpg";
+import disasterGirl from "../../assets/templates/Disaster_Girl.jpg";
+import thirdWorldKid from "../../assets/templates/Third_World_Skeptical_Kid.jpg";
+import waitingSkeleton from "../../assets/templates/Waiting_Skeleton.jpg";
 
-// (you used baby for all here - replace later with real images)
-import successkid from "../../assets/templates/baby.jpg";
-import spongebob from "../../assets/templates/baby.jpg";
-import pablo from "../../assets/templates/baby.jpg";
-import pikachu from "../../assets/templates/baby.jpg";
+// Football templates
+import laughingLeo from "../../assets/templates/Laughing_Leo.jpg";
+import youGuysGettingPaid from "../../assets/templates/You_Guys_Are_Getting_Paid.jpg";
+import surprisedPikachu from "../../assets/templates/Surprised_Pikachu.jpg";
+import absoluteCinema from "../../assets/templates/Absolute_Cinema.jpg";
 
-import thisisfine from "../../assets/templates/baby.jpg";
-import gru from "../../assets/templates/baby.jpg";
-import exitImg from "../../assets/templates/baby.jpg";
-import changemymind from "../../assets/templates/baby.jpg";
+// Work/Office templates
+import theOfficeCongrats from "../../assets/templates/The_Office_Congratulations.jpg";
+import oneDoesNotSimply from "../../assets/templates/One_Does_Not_Simply.jpg";
+import changeMind from "../../assets/templates/Change_My_Mind.jpg";
+import scientist from "../../assets/templates/You_know_Im_something_of_a_scientist_myself.jpg";
 
 const TOPIC_SECONDS = 300;
 
@@ -54,10 +55,10 @@ const FALLBACK_TASKS: {
     title: "School",
     description: "Something relatable about school life.",
     templates: [
-      { id: "s1", title: "Baby", imageUrl: baby },
-      { id: "s2", title: "Boromir", imageUrl: boromir },
-      { id: "s3", title: "Choice", imageUrl: choice },
-      { id: "s4", title: "Doge", imageUrl: doge },
+      { id: "s1", title: "Success Kid", imageUrl: successKid },
+      { id: "s2", title: "Disaster Girl", imageUrl: disasterGirl },
+      { id: "s3", title: "Third World Kid", imageUrl: thirdWorldKid },
+      { id: "s4", title: "Waiting Skeleton", imageUrl: waitingSkeleton },
     ],
   },
   {
@@ -65,10 +66,10 @@ const FALLBACK_TASKS: {
     title: "Playing Football",
     description: "A meme about football situations.",
     templates: [
-      { id: "f1", title: "Success Kid", imageUrl: successkid },
-      { id: "f2", title: "SpongeBob", imageUrl: spongebob },
-      { id: "f3", title: "Pablo", imageUrl: pablo },
-      { id: "f4", title: "Pikachu", imageUrl: pikachu },
+      { id: "f1", title: "Laughing Leo", imageUrl: laughingLeo },
+      { id: "f2", title: "Getting Paid", imageUrl: youGuysGettingPaid },
+      { id: "f3", title: "Surprised Pikachu", imageUrl: surprisedPikachu },
+      { id: "f4", title: "Absolute Cinema", imageUrl: absoluteCinema },
     ],
   },
   {
@@ -76,10 +77,10 @@ const FALLBACK_TASKS: {
     title: "Work / Office",
     description: "Relatable office vibes.",
     templates: [
-      { id: "w1", title: "This is Fine", imageUrl: thisisfine },
-      { id: "w2", title: "Gru Plan", imageUrl: gru },
-      { id: "w3", title: "Exit", imageUrl: exitImg },
-      { id: "w4", title: "Change My Mind", imageUrl: changemymind },
+      { id: "w1", title: "Office Congratulations", imageUrl: theOfficeCongrats },
+      { id: "w2", title: "One Does Not Simply", imageUrl: oneDoesNotSimply },
+      { id: "w3", title: "Change My Mind", imageUrl: changeMind },
+      { id: "w4", title: "Scientist", imageUrl: scientist },
     ],
   },
 ];

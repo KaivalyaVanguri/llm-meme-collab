@@ -25,20 +25,23 @@ import { exportMemePNG } from "../../Components/MemeEditor/exportMeme";
 import MemeEditor, { type MemeTextLayer } from "../../Components/MemeEditor/MemeEditor";
 import { uploadMemeAndInsertRow } from "../../lib/memeUpload";
 
-import baby from "../../assets/templates/baby.jpg";
-import boromir from "../../assets/templates/boromir.jpg";
-import choice from "../../assets/templates/choice.jpg";
-import doge from "../../assets/templates/doge.jpg";
+// School templates
+import successKid from "../../assets/templates/Success_Kid.jpg";
+import disasterGirl from "../../assets/templates/Disaster_Girl.jpg";
+import thirdWorldKid from "../../assets/templates/Third_World_Skeptical_Kid.jpg";
+import waitingSkeleton from "../../assets/templates/Waiting_Skeleton.jpg";
 
-import successkid from "../../assets/templates/baby.jpg";
-import spongebob from "../../assets/templates/baby.jpg";
-import pablo from "../../assets/templates/baby.jpg";
-import pikachu from "../../assets/templates/baby.jpg";
+// Football templates
+import laughingLeo from "../../assets/templates/Laughing_Leo.jpg";
+import youGuysGettingPaid from "../../assets/templates/You_Guys_Are_Getting_Paid.jpg";
+import surprisedPikachu from "../../assets/templates/Surprised_Pikachu.jpg";
+import absoluteCinema from "../../assets/templates/Absolute_Cinema.jpg";
 
-import thisisfine from "../../assets/templates/baby.jpg";
-import gru from "../../assets/templates/baby.jpg";
-import exitImg from "../../assets/templates/baby.jpg";
-import changemymind from "../../assets/templates/baby.jpg";
+// Work/Office templates
+import theOfficeCongrats from "../../assets/templates/The_Office_Congratulations.jpg";
+import oneDoesNotSimply from "../../assets/templates/One_Does_Not_Simply.jpg";
+import changeMind from "../../assets/templates/Change_My_Mind.jpg";
+import scientist from "../../assets/templates/You_know_Im_something_of_a_scientist_myself.jpg";
 
 const TOPIC_SECONDS = 300;
 
@@ -55,10 +58,10 @@ const FALLBACK_TASKS: {
     title: "School",
     description: "Something relatable about school life.",
     templates: [
-      { id: "s1", title: "Baby", imageUrl: baby },
-      { id: "s2", title: "Boromir", imageUrl: boromir },
-      { id: "s3", title: "Choice", imageUrl: choice },
-      { id: "s4", title: "Doge", imageUrl: doge },
+      { id: "s1", title: "Success Kid", imageUrl: successKid },
+      { id: "s2", title: "Disaster Girl", imageUrl: disasterGirl },
+      { id: "s3", title: "Third World Kid", imageUrl: thirdWorldKid },
+      { id: "s4", title: "Waiting Skeleton", imageUrl: waitingSkeleton },
     ],
   },
   {
@@ -66,10 +69,10 @@ const FALLBACK_TASKS: {
     title: "Playing Football",
     description: "A meme about football situations.",
     templates: [
-      { id: "f1", title: "Success Kid", imageUrl: successkid },
-      { id: "f2", title: "SpongeBob", imageUrl: spongebob },
-      { id: "f3", title: "Pablo", imageUrl: pablo },
-      { id: "f4", title: "Pikachu", imageUrl: pikachu },
+      { id: "f1", title: "Laughing Leo", imageUrl: laughingLeo },
+      { id: "f2", title: "Getting Paid", imageUrl: youGuysGettingPaid },
+      { id: "f3", title: "Surprised Pikachu", imageUrl: surprisedPikachu },
+      { id: "f4", title: "Absolute Cinema", imageUrl: absoluteCinema },
     ],
   },
   {
@@ -77,10 +80,10 @@ const FALLBACK_TASKS: {
     title: "Work / Office",
     description: "Relatable office vibes.",
     templates: [
-      { id: "w1", title: "This is Fine", imageUrl: thisisfine },
-      { id: "w2", title: "Gru Plan", imageUrl: gru },
-      { id: "w3", title: "Exit", imageUrl: exitImg },
-      { id: "w4", title: "Change My Mind", imageUrl: changemymind },
+      { id: "w1", title: "Office Congratulations", imageUrl: theOfficeCongrats },
+      { id: "w2", title: "One Does Not Simply", imageUrl: oneDoesNotSimply },
+      { id: "w3", title: "Change My Mind", imageUrl: changeMind },
+      { id: "w4", title: "Scientist", imageUrl: scientist },
     ],
   },
 ];
@@ -95,6 +98,7 @@ type AiMeme = {
 type TopicState = {
   topicId: string;
   aiMemes: AiMeme[];
+  aiSelectedTemplateId: string | null;
   selectedAiId: string | null;
   prompt: string;
   refinePrompt: string;
@@ -129,30 +133,62 @@ function captionToLayers(text: string): MemeTextLayer[] {
   ];
 }
 
+async function imageUrlToBase64(url: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Could not get canvas context"));
+        return;
+      }
+      ctx.drawImage(img, 0, 0);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+      resolve(dataUrl);
+    };
+    img.onerror = () => reject(new Error(`Failed to load image: ${url}`));
+    img.src = url;
+  });
+}
+
 function normalizeAiMemes(
   input: Array<{ templateId?: string; caption?: string }>,
   templates: MemeTemplate[]
 ) {
   const byId = new Map(templates.map((t) => [t.id, t]));
+  
+  // AI should select ONE template and provide 3 captions for it
+  // Use the templateId from first item (AI's selected template)
+  const selectedTemplateId = input[0]?.templateId && byId.has(input[0].templateId) 
+    ? input[0].templateId 
+    : templates[0]?.id;
+
+  // Map captions - keep them even if empty, we'll validate later
   const safe = input
+    .slice(0, 3)  // Take first 3 from AI response
     .map((m) => ({
-      templateId: m.templateId && byId.has(m.templateId) ? m.templateId : templates[0]?.id,
+      templateId: selectedTemplateId,  // All use the SAME template
       caption: (m.caption ?? "").trim(),
+    }));
+
+  // Ensure we have exactly 3 captions (pad if needed)
+  while (safe.length < 3) {
+    safe.push({ templateId: selectedTemplateId as string, caption: "" });
+  }
+
+  return {
+    selectedTemplateId: selectedTemplateId as string,
+    memes: safe.map((m) => ({
+      id: makeId("ai"),
+      templateId: m.templateId as string,
+      caption: m.caption,
+      layers: captionToLayers(m.caption),
     }))
-    .filter((m) => m.templateId);
-
-  const padded = [
-    safe[0] ?? { templateId: templates[0]?.id, caption: "" },
-    safe[1] ?? { templateId: templates[1]?.id ?? templates[0]?.id, caption: "" },
-    safe[2] ?? { templateId: templates[2]?.id ?? templates[0]?.id, caption: "" },
-  ];
-
-  return padded.map((m) => ({
-    id: makeId("ai"),
-    templateId: m.templateId as string,
-    caption: m.caption,
-    layers: captionToLayers(m.caption),
-  }));
+  };
 }
 
 async function generateAiMemes(args: {
@@ -167,9 +203,56 @@ async function generateAiMemes(args: {
   const baseUrl = (import.meta.env.VITE_OPENAI_BASE_URL as string | undefined) ?? "https://api.openai.com/v1";
   const url = `${baseUrl.replace(/\/$/, "")}/chat/completions`;
 
-  const templateList = args.templates
-    .map((t) => `${t.id}: ${t.title}`)
-    .join(", ");
+  // Convert all template images to base64
+  const templateImagesBase64 = await Promise.all(
+    args.templates.map(async (t) => ({
+      id: t.id,
+      title: t.title,
+      base64: await imageUrlToBase64(t.imageUrl),
+    }))
+  );
+
+  // Build the user message content with images
+  const userContent: any[] = [
+    {
+      type: "text",
+      text: [
+        `Topic: ${args.topicTitle} - ${args.topicDescription}`,
+        `User prompt: ${args.prompt}`,
+        "",
+        "I'm showing you 4 meme templates below. Each image is labeled with its ID and title.",
+        "Step 1: Analyze ALL 4 images and determine which template BEST fits this topic based on:",
+        "  - Visual context and emotion",
+        "  - Meme format compatibility",
+        "  - Relevance to the topic",
+        "",
+        "Step 2: Generate 3 DIFFERENT creative and funny captions for your selected template.",
+        "",
+        "Return ONLY valid JSON in this exact format:",
+        '{"memes":[{"templateId":"<selected_id>","caption":"..."},{"templateId":"<selected_id>","caption":"..."},{"templateId":"<selected_id>","caption":"..."}]}',
+        "",
+        "Requirements:",
+        "- All 3 memes MUST use the SAME templateId (the one you visually selected)",
+        "- Each caption must be unique, funny, and under 120 characters",
+        "- Return ONLY the JSON, no explanation",
+      ].join("\n"),
+    },
+  ];
+
+  // Add each template image
+  templateImagesBase64.forEach((img) => {
+    userContent.push({
+      type: "text",
+      text: `\n--- Template ID: ${img.id} | Title: ${img.title} ---`,
+    });
+    userContent.push({
+      type: "image_url",
+      image_url: {
+        url: img.base64,
+        detail: "low",
+      },
+    });
+  });
 
   const res = await fetch(url, {
     method: "POST",
@@ -180,22 +263,16 @@ async function generateAiMemes(args: {
     body: JSON.stringify({
       model: "gpt-4o-mini",
       temperature: 0.9,
-      max_tokens: 180,
+      max_tokens: 300,
       messages: [
         {
           role: "system",
           content:
-            "You generate meme ideas. Return JSON only with 3 items in an array called memes.",
+            "You are a meme expert. You analyze meme template images and create funny, relatable captions. You select the best template by visually analyzing the images provided.",
         },
         {
           role: "user",
-          content: [
-            `Topic: ${args.topicTitle} - ${args.topicDescription}`,
-            `Templates (pick any): ${templateList}`,
-            `User prompt: ${args.prompt}`,
-            "Return JSON like {\"memes\":[{\"templateId\":\"s1\",\"caption\":\"...\"}]}",
-            "Captions must be under 120 characters.",
-          ].join("\n"),
+          content: userContent,
         },
       ],
     }),
@@ -208,14 +285,19 @@ async function generateAiMemes(args: {
 
   const data = await res.json();
   const content = data?.choices?.[0]?.message?.content ?? "";
+  
+  console.log("🤖 AI Response content:", content);
+  
   if (!content) return [];
 
   try {
     const parsed = JSON.parse(content);
+    console.log("📋 Parsed JSON:", parsed);
     if (Array.isArray(parsed)) return parsed;
     if (Array.isArray(parsed?.memes)) return parsed.memes;
-  } catch {
-    // fall through
+  } catch (e) {
+    console.error("❌ JSON parse error:", e);
+    console.error("Raw content:", content);
   }
 
   return [];
@@ -249,6 +331,7 @@ export default function TaskAIFirst() {
     tasks.map((t) => ({
       topicId: t.topicId,
       aiMemes: [],
+      aiSelectedTemplateId: null,
       selectedAiId: null,
       prompt: "",
       refinePrompt: "",
@@ -268,9 +351,12 @@ export default function TaskAIFirst() {
     activeState.aiMemes.find((m) => m.id === activeState.selectedAiId) ?? null;
 
   const updateActiveState = (patch: Partial<TopicState>) => {
-    setStateByTopic((prev) =>
-      prev.map((s, idx) => (idx === activeIndex ? { ...s, ...patch } : s))
-    );
+    console.log("🔧 Updating active state with patch:", patch);
+    setStateByTopic((prev) => {
+      const updated = prev.map((s, idx) => (idx === activeIndex ? { ...s, ...patch } : s));
+      console.log("📝 New state after update:", updated[activeIndex]);
+      return updated;
+    });
   };
 
   const updateMemeLayers = (memeId: string, layers: MemeTextLayer[]) => {
@@ -289,6 +375,8 @@ export default function TaskAIFirst() {
         (promptOverride ?? activeState.prompt).trim() ||
         `Generate 3 meme captions about ${activeTask.title}.`;
 
+      console.log("🚀 Calling AI with prompt:", prompt);
+      
       const rawMemes = await generateAiMemes({
         prompt,
         topicTitle: activeTask.title,
@@ -296,14 +384,21 @@ export default function TaskAIFirst() {
         templates,
       });
 
-      const aiMemes = normalizeAiMemes(rawMemes, templates);
+      console.log("📦 Raw memes from AI:", rawMemes);
+
+      const { selectedTemplateId, memes: aiMemes } = normalizeAiMemes(rawMemes, templates);
+      
+      console.log("✅ Normalized memes:", aiMemes);
+      console.log("🎯 Selected template:", selectedTemplateId);
+      
       setStateByTopic((prev) =>
         prev.map((s, idx) => {
           if (idx !== activeIndex) return s;
-          const nextRetry = aiMemes.length ? 0 : s.retryCount + 1;
+          const nextRetry = aiMemes.length && aiMemes.some(m => m.caption) ? 0 : s.retryCount + 1;
           return {
             ...s,
             aiMemes,
+            aiSelectedTemplateId: selectedTemplateId,
             selectedAiId: aiMemes[0]?.id ?? null,
             lastPromptGenerated: prompt,
             retryCount: nextRetry,
@@ -312,8 +407,8 @@ export default function TaskAIFirst() {
       );
       setToast({
         open: true,
-        type: aiMemes.length ? "success" : "error",
-        msg: aiMemes.length ? "AI memes generated." : "AI returned empty memes. Retrying...",
+        type: aiMemes.length && aiMemes.some(m => m.caption) ? "success" : "error",
+        msg: aiMemes.length && aiMemes.some(m => m.caption) ? "AI selected template and generated 3 captions." : "AI returned empty memes. Retrying...",
       });
     } catch (err: any) {
       console.error(err);
@@ -351,41 +446,49 @@ export default function TaskAIFirst() {
   }, [secondsLeft]);
 
   useEffect(() => {
+    console.log("🔄 Active index changed to:", activeIndex);
+    console.log("📊 Current state for this topic:", activeState);
+    
     if (!activeState.aiMemes.length && !activeState.generating) {
+      console.log("⚠️ No memes found, generating...");
       void runAiForTopic();
+    } else {
+      console.log("✅ Memes already exist:", activeState.aiMemes);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeIndex]);
 
-  useEffect(() => {
-    const prompt = activeState.prompt.trim();
-    if (prompt.length < 3) return;
-    if (prompt === activeState.lastPromptGenerated) return;
-    if (activeState.generating) return;
+  // Disabled automatic prompt-based regeneration to prevent unwanted clearing of results
+  // useEffect(() => {
+  //   const prompt = activeState.prompt.trim();
+  //   if (prompt.length < 3) return;
+  //   if (prompt === activeState.lastPromptGenerated) return;
+  //   if (activeState.generating) return;
 
-    const id = window.setTimeout(() => {
-      void runAiForTopic(prompt);
-    }, 600);
+  //   const id = window.setTimeout(() => {
+  //     void runAiForTopic(prompt);
+  //   }, 600);
 
-    return () => window.clearTimeout(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeState.prompt, activeIndex]);
+  //   return () => window.clearTimeout(id);
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [activeState.prompt, activeIndex]);
 
-  useEffect(() => {
-    if (activeState.generating) return;
-    if (activeState.aiMemes.length) return;
-    if (activeState.retryCount >= 3) return;
+  // Disabled automatic retries to prevent clearing of valid results
+  // useEffect(() => {
+  //   if (activeState.generating) return;
+  //   if (activeState.aiMemes.length) return;
+  //   if (activeState.retryCount >= 3) return;
 
-    const id = window.setTimeout(() => {
-      void runAiForTopic(
-        activeState.prompt.trim() ||
-          `Generate 3 meme captions about ${activeTask.title}.`
-      );
-    }, 800);
+  //   const id = window.setTimeout(() => {
+  //     void runAiForTopic(
+  //       activeState.prompt.trim() ||
+  //         `Generate 3 meme captions about ${activeTask.title}.`
+  //     );
+  //   }, 800);
 
-    return () => window.clearTimeout(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeState.aiMemes.length, activeState.retryCount, activeIndex]);
+  //   return () => window.clearTimeout(id);
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [activeState.aiMemes.length, activeState.retryCount, activeIndex]);
 
   const handleRefineWithAi = async () => {
     if (!selectedAiMeme) {
@@ -407,7 +510,8 @@ export default function TaskAIFirst() {
         topicDescription: activeTask.description,
         templates,
       });
-      const refined = normalizeAiMemes(raw, templates)[0];
+      const { memes: refinedMemes } = normalizeAiMemes(raw, templates);
+      const refined = refinedMemes[0];
       if (refined) updateMemeLayers(selectedAiMeme.id, refined.layers);
       setToast({ open: true, type: "success", msg: "Caption refined." });
     } catch (err: any) {
@@ -454,9 +558,35 @@ export default function TaskAIFirst() {
 
     setSaving(true);
     try {
-      const template = templates.find((t) => t.id === selectedAiMeme.templateId);
+      const template = templates.find((t) => t.id === activeState.aiSelectedTemplateId);
       if (!template) throw new Error("Template not found.");
 
+      // Step 1: Save all 3 AI-generated ideas with task='ai'
+      for (let i = 0; i < activeState.aiMemes.length; i++) {
+        const aiMeme = activeState.aiMemes[i];
+        const aiMemePng = await exportMemePNG({
+          imageUrl: template.imageUrl,
+          layers: aiMeme.layers,
+          width: 1400,
+        });
+
+        await uploadMemeAndInsertRow({
+          bucket: "memes",
+          participantId,
+          prolificPid: session.prolificPid,
+          studyId: session.studyId,
+          sessionId: session.sessionId,
+          task: "ai",  // Mark as AI-generated
+          topicId: activeTask.topicId,
+          templateId: template.id,
+          ideaIndex: i,
+          caption: aiMeme.caption ?? "",
+          layers: aiMeme.layers,
+          memeDataUrl: aiMemePng,
+        });
+      }
+
+      // Step 2: Save the human-refined final selection with task='humanrefined'
       const memePng = await exportMemePNG({
         imageUrl: template.imageUrl,
         layers: selectedAiMeme.layers,
@@ -471,9 +601,9 @@ export default function TaskAIFirst() {
         prolificPid: session.prolificPid,
         studyId: session.studyId,
         sessionId: session.sessionId,
-        task: "ai-first",
+        task: "humanrefined",  // Mark as human-refined version
         topicId: activeTask.topicId,
-        templateId: selectedAiMeme.templateId,
+        templateId: template.id,
         ideaIndex: activeState.aiMemes.findIndex((m) => m.id === selectedAiMeme.id),
         caption: selectedAiMeme.caption ?? "",
         layers: selectedAiMeme.layers,
@@ -485,7 +615,7 @@ export default function TaskAIFirst() {
         savedImagePath: result.filePath,
       });
 
-      setToast({ open: true, type: "success", msg: "Saved" });
+      setToast({ open: true, type: "success", msg: "Saved all AI ideas + refined version!" });
 
       const isLast = activeIndex === tasks.length - 1;
       if (!isLast) {
@@ -577,7 +707,7 @@ export default function TaskAIFirst() {
             AI-first Meme Task
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Topic {activeIndex + 1} of {tasks.length} - AI generates 3 memes - pick one - enhance it
+            Topic {activeIndex + 1} of {tasks.length} - AI selects best template & generates 3 captions - pick one - refine it
           </Typography>
           <Typography variant="caption" color="text.secondary">
             Participant: <b>{participantId}</b>
@@ -614,14 +744,23 @@ export default function TaskAIFirst() {
                   minRows={2}
                 /> */}
                 <Typography variant="caption" color="text.secondary">
-                  AI auto-generates 3 memes from the topic and 4 templates.
+                  AI analyzes 4 templates, picks the best one, and generates 3 different captions for it.
                 </Typography>
                 {activeState.generating && <LinearProgress sx={{ mt: 1 }} />}
               </Stack>
 
               <Stack spacing={1.5}>
-                {!activeState.aiMemes.length && (
+                {!activeState.aiMemes.length && !activeState.generating && (
                   <Alert severity="info">Generating AI memes...</Alert>
+                )}
+                {!activeState.aiMemes.length && activeState.retryCount > 0 && !activeState.generating && (
+                  <Alert severity="warning" action={
+                    <Button color="inherit" size="small" onClick={() => runAiForTopic()}>
+                      Retry
+                    </Button>
+                  }>
+                    AI generation failed. Click Retry to try again.
+                  </Alert>
                 )}
                 {activeState.aiMemes.map((meme) => {
                   const template = templates.find((t) => t.id === meme.templateId);

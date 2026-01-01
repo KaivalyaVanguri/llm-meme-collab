@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import RootLayout from "../Components/Layout/RootLayout";
 
+import Home from "../pages/Home/Home";
 import Consent from "../pages/Consent/Consent";
 import IntroHuman from "../pages/IntroHuman/IntroHuman";
 import IntroAI from "../pages/IntroAI/IntroAI";
@@ -16,7 +17,8 @@ export const router = createBrowserRouter([
     path: "/",
     element: <RootLayout />,
     children: [
-      { index: true, element: <Navigate to="/task/human-first" replace /> },
+      { index: true, element: <Home /> },
+      { path: "home", element: <Home /> },
       { path: "consent", element: <Consent /> },
       { path: "intro/human", element: <IntroHuman /> },
       { path: "intro/ai", element: <IntroAI /> },
