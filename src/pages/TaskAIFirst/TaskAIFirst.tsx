@@ -829,7 +829,7 @@ export default function TaskAIFirst() {
                     maxHeight={520}
                   />
 
-                  <TextField
+                  {/* <TextField
                     label="Refine with AI (optional)"
                     placeholder="Ask the AI to punch up or rewrite the caption"
                     value={activeState.refinePrompt}
@@ -837,14 +837,14 @@ export default function TaskAIFirst() {
                     fullWidth
                     multiline
                     minRows={2}
-                  />
-                  <Button
+                  /> */}
+                  {/* <Button
                     variant="outlined"
                     onClick={handleRefineWithAi}
                     disabled={activeState.generating}
                   >
                     {activeState.generating ? "Refining..." : "Use AI again"}
-                  </Button>
+                  </Button> */}
                 </Stack>
               )}
             </CardContent>
