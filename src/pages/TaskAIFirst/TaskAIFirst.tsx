@@ -14,7 +14,6 @@ import {
   Paper,
   Snackbar,
   Stack,
-  TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -490,11 +489,11 @@ export default function TaskAIFirst() {
   //   // eslint-disable-next-line react-hooks/exhaustive-deps
   // }, [activeState.aiMemes.length, activeState.retryCount, activeIndex]);
 
-  const handleRefineWithAi = async () => {
-    if (!selectedAiMeme) {
-      setToast({ open: true, type: "error", msg: "Select a meme first." });
-      return;
-    }
+  // const handleRefineWithAi = async () => {
+  //   if (!selectedAiMeme) {
+  //     setToast({ open: true, type: "error", msg: "Select a meme first." });
+  //     return;
+  //   }
 
     const prompt = activeState.refinePrompt.trim();
     if (prompt.length < 3) {
