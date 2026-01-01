@@ -495,35 +495,35 @@ export default function TaskAIFirst() {
   //     return;
   //   }
 
-    const prompt = activeState.refinePrompt.trim();
-    if (prompt.length < 3) {
-      setToast({ open: true, type: "error", msg: "Add a short prompt (min 3 chars)." });
-      return;
-    }
+  //   const prompt = activeState.refinePrompt.trim();
+  //   if (prompt.length < 3) {
+  //     setToast({ open: true, type: "error", msg: "Add a short prompt (min 3 chars)." });
+  //     return;
+  //   }
 
-    updateActiveState({ generating: true });
-    try {
-      const raw = await generateAiMemes({
-        prompt: `Refine this caption: "${selectedAiMeme.caption}". ${prompt}`,
-        topicTitle: activeTask.title,
-        topicDescription: activeTask.description,
-        templates,
-      });
-      const { memes: refinedMemes } = normalizeAiMemes(raw, templates);
-      const refined = refinedMemes[0];
-      if (refined) updateMemeLayers(selectedAiMeme.id, refined.layers);
-      setToast({ open: true, type: "success", msg: "Caption refined." });
-    } catch (err: any) {
-      console.error(err);
-      setToast({
-        open: true,
-        type: "error",
-        msg: err?.message ? `AI failed: ${err.message}` : "AI failed",
-      });
-    } finally {
-      updateActiveState({ generating: false });
-    }
-  };
+  //   updateActiveState({ generating: true });
+  //   try {
+  //     const raw = await generateAiMemes({
+  //       prompt: `Refine this caption: "${selectedAiMeme.caption}". ${prompt}`,
+  //       topicTitle: activeTask.title,
+  //       topicDescription: activeTask.description,
+  //       templates,
+  //     });
+  //     const { memes: refinedMemes } = normalizeAiMemes(raw, templates);
+  //     const refined = refinedMemes[0];
+  //     if (refined) updateMemeLayers(selectedAiMeme.id, refined.layers);
+  //     setToast({ open: true, type: "success", msg: "Caption refined." });
+  //   } catch (err: any) {
+  //     console.error(err);
+  //     setToast({
+  //       open: true,
+  //       type: "error",
+  //       msg: err?.message ? `AI failed: ${err.message}` : "AI failed",
+  //     });
+  //   } finally {
+  //     updateActiveState({ generating: false });
+  //   }
+  // };
 
   const canContinue = Boolean(selectedAiMeme?.templateId) &&
     (selectedAiMeme?.layers.find((l) => l.locked)?.text ?? "").trim().length >= 3;
