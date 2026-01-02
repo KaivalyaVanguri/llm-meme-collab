@@ -1,4 +1,5 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useEffect } from "react";
 import {
   Box,
   Button,
@@ -16,6 +17,31 @@ import RateReviewIcon from "@mui/icons-material/RateReview";
 
 export default function Home() {
   const nav = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const studyId = searchParams.get('studyid');
+    
+    if (studyId) {
+      const studyIdLower = studyId.toLowerCase();
+      
+      // Build query string to preserve URL parameters
+      const queryString = searchParams.toString();
+      
+      if (studyIdLower === 'aifirst') {
+        nav(`/task/ai-first?${queryString}`);
+      } else if (studyIdLower === 'humanfirst') {
+        nav(`/task/human-first?${queryString}`);
+      } else if (studyIdLower === 'review') {
+        nav(`/review?${queryString}`);
+      }
+    }
+  }, [searchParams, nav]);
+
+  const buildPath = (basePath: string) => {
+    const queryString = searchParams.toString();
+    return queryString ? `${basePath}?${queryString}` : basePath;
+  };
 
   return (
     <Container maxWidth="md">
@@ -52,7 +78,7 @@ export default function Home() {
                 },
               }}
             >
-              <CardActionArea onClick={() => nav("/task/ai-first")}>
+              <CardActionArea onClick={() => nav(buildPath("/task/ai-first"))}>
                 <CardContent sx={{ p: 4 }}>
                   <Stack spacing={2} alignItems="center" textAlign="center">
                     <Box
@@ -94,7 +120,7 @@ export default function Home() {
                       size="large"
                       fullWidth
                       sx={{ mt: 2 }}
-                      onClick={() => nav("/task/ai-first")}
+                      onClick={() => nav(buildPath("/task/ai-first"))}
                     >
                       Start AI-First
                     </Button>
@@ -114,7 +140,7 @@ export default function Home() {
                 },
               }}
             >
-              <CardActionArea onClick={() => nav("/task/human-first")}>
+              <CardActionArea onClick={() => nav(buildPath("/task/human-first"))}>
                 <CardContent sx={{ p: 4 }}>
                   <Stack spacing={2} alignItems="center" textAlign="center">
                     <Box
@@ -156,7 +182,7 @@ export default function Home() {
                       size="large"
                       fullWidth
                       sx={{ mt: 2 }}
-                      onClick={() => nav("/task/human-first")}
+                      onClick={() => nav(buildPath("/task/human-first"))}
                     >
                       Start Human-First
                     </Button>
@@ -180,7 +206,7 @@ export default function Home() {
               },
             }}
           >
-            <CardActionArea onClick={() => nav("/review")}>
+            <CardActionArea onClick={() => nav(buildPath("/review"))}>
               <CardContent sx={{ p: 4 }}>
                 <Stack spacing={2} alignItems="center" textAlign="center">
                   <Box
@@ -208,7 +234,7 @@ export default function Home() {
                     fullWidth
                     color="info"
                     sx={{ mt: 2 }}
-                    onClick={() => nav("/review")}
+                    onClick={() => nav(buildPath("/review"))}
                   >
                     Go to Review
                   </Button>
