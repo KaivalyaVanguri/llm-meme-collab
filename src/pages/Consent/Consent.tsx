@@ -1,3 +1,4 @@
+import { useSession } from "../../app/session/SessionContext";
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import "./ConsentForm.css";
@@ -132,10 +133,14 @@ const ConsentForm = () => {
       </p>
 
       <button
-        className="btn"
-        onClick={handleAgree}
-        disabled={!isAgreed1 || !isAgreed2}
-      >
+        onClick={() => {
+          setConsented(true);
+          // Randomly assign condition (or let researcher choose)
+          const c = Math.random() < 0.5 ? "human-first" : "ai-first";
+          setCondition(c);
+          nav(c === "human-first" ? "/intro/human" : "/intro/ai");
+        }}
+        >
         Agree and Continue
       </button>
     </div>
